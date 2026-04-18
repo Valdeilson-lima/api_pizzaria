@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const createUserController_1 = require("./controller/user/createUserController");
+const validateSchema_1 = require("./middlewares/validateSchema");
+const userSchema_1 = require("./schemas/userSchema");
+const authUserController_1 = require("./controller/user/authUserController");
+const DetailUserControler_1 = require("./controller/user/DetailUserControler");
+const isAuthenticated_1 = require("./middlewares/isAuthenticated");
+const CrateCategoryController_1 = require("./controller/category/CrateCategoryController");
+const ListCategoryController_1 = require("./controller/category/ListCategoryController");
+const isAdmin_1 = require("./middlewares/isAdmin");
+const categorySchema_1 = require("./schemas/categorySchema");
+const router = (0, express_1.Router)();
+router.post("/users", (0, validateSchema_1.validateSchema)(userSchema_1.createUserSchema), new createUserController_1.createUserController().handle);
+router.post("/session", (0, validateSchema_1.validateSchema)(userSchema_1.authUserSchema), new authUserController_1.authUserController().handle);
+router.get("/me", isAuthenticated_1.isAuthenticated, new DetailUserControler_1.DetailUserControler().handle);
+router.post("/categories", isAuthenticated_1.isAuthenticated, isAdmin_1.isAdmin, (0, validateSchema_1.validateSchema)(categorySchema_1.createCategorySchema), new CrateCategoryController_1.CreateCategoryController().handle);
+router.get("/category", isAuthenticated_1.isAuthenticated, new ListCategoryController_1.ListCategoryController().handle);
+exports.default = router;
+//# sourceMappingURL=routes.js.map

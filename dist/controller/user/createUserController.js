@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createUserController = void 0;
+const CreateUserService_1 = require("../../services/user/CreateUserService");
+class createUserController {
+    async handle(req, res) {
+        const { name, email, password } = req.body;
+        const createUserService = new CreateUserService_1.CreateUserService();
+        const user = await createUserService.execute({
+            name,
+            email,
+            password,
+        });
+        res.status(201).json(user);
+    }
+}
+exports.createUserController = createUserController;
+//# sourceMappingURL=createUserController.js.map
