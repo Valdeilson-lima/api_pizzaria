@@ -2,7 +2,7 @@
 
 ## 1. Visão Geral
 
-Esta aplicação é uma API REST construída com Node.js + TypeScript para gerenciamento de usuários e operações iniciais da pizzaria (autenticação, perfil e cadastro de categorias).
+Esta aplicação é uma API REST construída com Node.js + TypeScript para gerenciamento de usuários e operações iniciais da pizzaria (autenticação, perfil, cadastro e listagem de categorias).
 
 - Base path da API: `/api`
 - Formato de dados: JSON
@@ -79,6 +79,7 @@ api_pizzaria/
         DetailUserControler.ts
       category/
         CrateCategoryController.ts
+        ListCategoryController.ts
     services/
       user/
         CreateUserService.ts
@@ -86,6 +87,7 @@ api_pizzaria/
         DetailUserService.ts
       category/
         CreateCategoryService.ts
+        ListCategoryService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -361,6 +363,42 @@ Authorization: Bearer <token_jwt_admin>
 - 400: validação Zod
 - 400: categoria já existe
 
+### 6.5 Listar categorias
+
+- Método e rota: `GET /category`
+- Middlewares:
+  - `isAuthenticated`
+- Objetivo: retornar todas as categorias cadastradas no banco.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Resposta de sucesso (200)
+
+```json
+[
+  {
+    "id": "b6221375-3701-42f4-b840-8f4a579791f2",
+    "name": "Bebidas",
+    "createdAt": "2026-04-14T12:00:00.000Z"
+  },
+  {
+    "id": "d58f31d9-c8f4-4f2e-a8e5-8f8152a2dc9a",
+    "name": "Pizzas",
+    "createdAt": "2026-04-13T18:30:00.000Z"
+  }
+]
+```
+
+#### Possíveis erros
+
+- 401: token não fornecido
+- 401: token inválido
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validação de Dados
@@ -451,6 +489,16 @@ A validação é feita por Zod, aplicada no middleware `validateSchema`.
 7. Controller retorna `201` com dados da categoria criada.
 8. Em falha, retorna mensagem de erro compatível com o fluxo.
 
+### 9.3 Exemplo completo: `GET /category`
+
+1. Request chega em `/api/category`.
+2. `isAuthenticated` valida token e define `req.userId`.
+3. `ListCategoryController.handle` chama `ListCategoryService.execute`.
+4. `ListCategoryService.execute` consulta todas as categorias em `categories`.
+5. O service retorna os dados selecionados (`id`, `name`, `createdAt`) ordenados por data de criação.
+6. Controller retorna `200` com a lista de categorias.
+7. Em falha, retorna mensagem de erro compatível com o fluxo.
+
 ---
 
 ## 10. Segurança e Configuração
@@ -466,13 +514,14 @@ A validação é feita por Zod, aplicada no middleware `validateSchema`.
 - Senhas com hash `bcrypt` (salt rounds = 8).
 - JWT com expiração de 1 dia.
 - Controle de acesso por role para endpoint administrativo.
+- Controle de acesso por autenticação para endpoint de listagem de categorias.
 - Validação de payload com Zod.
 
 ---
 
 ## 11. Observações Técnicas Relevantes
 
-- O projeto já possui entidades no banco para produtos e pedidos, mas as rotas implementadas no momento cobrem somente usuários e categorias.
+- O projeto já possui entidades no banco para produtos e pedidos, mas as rotas implementadas no momento cobrem somente usuários e categorias (cadastro e listagem).
 - Existe consistência de padrão Controller -> Service -> Prisma na maior parte do código.
 - O cliente Prisma é gerado em `src/generated/prisma` com provider `prisma-client`.
 
