@@ -21,7 +21,9 @@ class CreateProductService {
     imageName,
   }: CreateProductServiceProps) {
     if (!Number.isInteger(price) || price < 0) {
-      throw new Error("Preço inválido. Envie um número inteiro maior ou igual a zero.");
+      throw new Error(
+        "Preço inválido. Envie um número inteiro maior ou igual a zero.",
+      );
     }
 
     const categoryAlreadyExists = await prismaClient.category.findFirst({
@@ -59,9 +61,18 @@ class CreateProductService {
       });
 
       bannerUrl = (result as any).secure_url;
-      console.log("URL da imagem no Cloudinary:", bannerUrl);
     } catch (error) {
       throw new Error("Erro ao fazer upload da imagem");
+    }
+
+    const existingProduct = await prismaClient.product.findFirst({
+      where: {
+        name: name,
+      },
+    });
+
+    if (existingProduct) {
+      throw new Error("Já existe um produto com esse nome");
     }
 
     const product = await prismaClient.product.create({
