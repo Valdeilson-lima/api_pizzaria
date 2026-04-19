@@ -31,3 +31,11 @@ export const removeItemSchema = z.object({
     }),
   }),
 });
+
+export const detailOrderSchema = z.object({
+  query: z.object({
+    order_id: z.string({ message: "O ID do pedido e obrigatorio" }).min(1, {
+      message: "O ID do pedido e obrigatorio",
+    }),
+  }),
+});
