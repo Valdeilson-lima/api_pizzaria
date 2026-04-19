@@ -8,7 +8,7 @@ Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
 - Produtos: criacao com upload de imagem (Cloudinary), listagem, listagem por categoria e desativacao.
-- Pedidos: criacao, listagem, detalhamento, adicao/remocao de itens e envio para cozinha.
+- Pedidos: criacao, listagem, detalhamento, adicao/remocao de itens, remocao de pedido, envio para cozinha e finalizacao.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -281,6 +281,7 @@ Base URL local (exemplo): `http://localhost:{PORT}/api`
 - `GET /order/detail` - Detalhar pedido
 - `POST /order/add` - Adicionar item ao pedido
 - `DELETE /order/remove` - Remover item do pedido
+- `DELETE /order` - Remover pedido
 - `PUT /order/send` - Enviar pedido para cozinha
 - `PUT /order/finish` - Finalizar pedido
 
@@ -972,6 +973,49 @@ Authorization: Bearer <token_jwt>
 - 404: pedido nao encontrado
 - 400: erro retornado pelo fluxo de service
 
+### 6.17 Remover pedido
+
+- Metodo e rota: `DELETE /order`
+- Query param obrigatorio:
+  - `order_id` (string)
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(removeOrderSchema)`
+- Objetivo: remover um pedido da base e, quando houver itens vinculados, a remocao ocorre em cascata.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Exemplo de uso
+
+- `/order?order_id=c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f`
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "message": "Pedido removido com sucesso"
+}
+```
+
+ou
+
+```json
+{
+  "message": "Pedido e itens vinculados removidos com sucesso"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: `order_id` nao enviado (Bad Request)
+- 404: pedido nao encontrado
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validacao de Dados
@@ -1026,6 +1070,9 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 12. `finishOrderSchema`
 - `order_id`: obrigatorio, string nao vazia
+
+13. `removeOrderSchema`
+- `query.order_id`: obrigatorio, string nao vazia
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -1226,6 +1273,18 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 7. Se existir, service atualiza o pedido com `status = true`.
 8. Controller retorna `200` com os dados atualizados e mensagem de sucesso.
 
+### 9.15 Exemplo completo: `DELETE /order`
+
+1. Request chega em `/api/order` com query `order_id`.
+2. `isAuthenticated` valida token.
+3. `validateSchema(removeOrderSchema)` valida `order_id`.
+4. `RemoveOrderController.handle` extrai `order_id` da query.
+5. `RemoveOrderService.execute` valida se o pedido existe.
+6. Se o pedido nao existir, retorna erro `404`.
+7. Service verifica se existem itens em `order_items` vinculados ao pedido.
+8. Service remove o pedido na tabela `orders`; os itens vinculados sao removidos em cascata.
+9. Controller retorna `200` com mensagem de sucesso.
+
 ---
 
 ## 10. Seguranca e Configuracao
@@ -1252,8 +1311,8 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 ## 11. Observacoes Tecnicas Relevantes
 
-- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao/remocao de itens, envio para cozinha e finalizacao.
-- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`), remocao de item (`DELETE /order/remove`), envio (`PUT /order/send`) e finalizacao (`PUT /order/finish`).
+- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao/remocao de itens, remocao de pedido, envio para cozinha e finalizacao.
+- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`), remocao de item (`DELETE /order/remove`), remocao de pedido (`DELETE /order`), envio (`PUT /order/send`) e finalizacao (`PUT /order/finish`).
 - A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
@@ -1279,7 +1338,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
 - No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
-- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista/detalha pedidos com seus itens, adiciona e remove itens, envia o pedido para cozinha (`draft = false`) e finaliza o pedido (`status = true`).
+- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista/detalha pedidos com seus itens, adiciona e remove itens, remove pedido com cascata de itens quando necessario, envia o pedido para cozinha (`draft = false`) e finaliza o pedido (`status = true`).
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
