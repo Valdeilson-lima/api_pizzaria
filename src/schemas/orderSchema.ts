@@ -39,3 +39,14 @@ export const detailOrderSchema = z.object({
     }),
   }),
 });
+
+export const sendOrderSchema = z.object({
+  body: z.object({
+    order_id: z.string({ message: "O ID do pedido e obrigatorio" }).min(1, {
+      message: "O ID do pedido e obrigatorio",
+    }),
+    name: z.string({ message: "O nome e obrigatorio" }).min(2, {
+      message: "O nome deve ter pelo menos 2 caracteres",
+    }).optional(),
+  }),
+});

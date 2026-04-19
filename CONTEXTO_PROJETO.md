@@ -8,7 +8,7 @@ Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
 - Produtos: criacao com upload de imagem (Cloudinary), listagem, listagem por categoria e desativacao.
-- Pedidos: criacao, listagem, detalhamento, adicao e remocao de itens do pedido.
+- Pedidos: criacao, listagem, detalhamento, adicao/remocao de itens e envio para cozinha.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -864,6 +864,50 @@ Authorization: Bearer <token_jwt>
 - 404: pedido nao encontrado
 - 400: erro retornado pelo fluxo de service
 
+### 6.15 Enviar pedido para cozinha
+
+- Metodo e rota: `PUT /order/send`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+- Objetivo: enviar pedido para cozinha, alterando `draft` para `false`.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Requisicao (JSON)
+
+```json
+{
+  "order_id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+  "name": "Joao Silva"
+}
+```
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "updatedOrder": {
+    "id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+    "table": 5,
+    "name": "Joao Silva",
+    "status": false,
+    "draft": false,
+    "createdAt": "2026-04-19T15:00:00.000Z"
+  },
+  "message": "Pedido enviado com sucesso"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 404: pedido nao encontrado
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validacao de Dados
@@ -911,6 +955,10 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 10. `detailOrderSchema`
 - `query.order_id`: obrigatorio, string nao vazia
+
+11. `sendOrderSchema`
+- `order_id`: obrigatorio, string nao vazia
+- `name`: opcional, string (minimo 2 caracteres)
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -1079,7 +1127,17 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 7. Se existir, service remove o item da tabela `order_items`.
 8. Controller retorna `200` com mensagem de sucesso.
 
-### 9.12 Exemplo completo: `GET /order/detail`
+### 9.12 Exemplo completo: `PUT /order/send`
+
+1. Request chega em `/api/order/send` com body JSON.
+2. `isAuthenticated` valida token.
+3. `SendOrderController.handle` extrai `order_id` e `name` do body.
+4. `SendOrderService.execute` valida se o pedido existe.
+5. Se o pedido nao existir, retorna erro `404`.
+6. Se existir, service atualiza o pedido com `draft = false`.
+7. Controller retorna `200` com os dados atualizados e mensagem de sucesso.
+
+### 9.13 Exemplo completo: `GET /order/detail`
 
 1. Request chega em `/api/order/detail` com query `order_id`.
 2. `isAuthenticated` valida token.
@@ -1115,8 +1173,8 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 ## 11. Observacoes Tecnicas Relevantes
 
-- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao e remocao de itens.
-- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`) e remocao de item (`DELETE /order/remove`).
+- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao/remocao de itens e envio para cozinha.
+- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`), remocao de item (`DELETE /order/remove`) e envio (`PUT /order/send`).
 - A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
@@ -1142,7 +1200,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
 - No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
-- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista e detalha pedidos com seus itens, adiciona produtos a pedidos em aberto e remove itens existentes.
+- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista/detalha pedidos com seus itens, adiciona e remove itens, e envia o pedido para cozinha (`draft = false`).
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
