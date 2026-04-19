@@ -20,6 +20,9 @@ import {
 import { ListProductController } from "./controller/product/ListProductController";
 import { DeleteProductController } from "./controller/product/DeleteProductControler";
 import { ListProductsByCategoryController } from "./controller/product/ListProductsByCategoryController";
+import { createOrderSchema } from "./schemas/orderSchema";
+import { CreateOrderController } from "./controller/order/CreateOrderController";
+import { ListOrdersController } from "./controller/order/ListOrdersController";
 
 const router = Router();
 const upload = multer(uploadConfig);
@@ -77,5 +80,14 @@ router.delete(
   isAdmin,
   new DeleteProductController().handle,
 );
+
+router.post(
+  "/order",
+  isAuthenticated,
+  validateSchema(createOrderSchema),
+  new CreateOrderController().handle,
+);
+
+router.get("/orders", isAuthenticated, new ListOrdersController().handle);
 
 export default router;

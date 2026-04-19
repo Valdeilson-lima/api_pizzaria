@@ -8,6 +8,7 @@ Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
 - Produtos: criacao com upload de imagem (Cloudinary), listagem, listagem por categoria e desativacao.
+- Pedidos: criacao e listagem de pedidos.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -97,6 +98,9 @@ api_pizzaria/
         ListProductController.ts
         ListProductsByCategoryController.ts
         DeleteProductControler.ts
+      order/
+        CreateOrderController.ts
+        ListOrdersController.ts
     services/
       user/
         CreateUserService.ts
@@ -110,6 +114,9 @@ api_pizzaria/
         ListProductService.ts
         ListProductsByCategoryService.ts
         DeleteProductService.ts
+      order/
+        CreateOrderService.ts
+        ListOrdersService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -118,6 +125,7 @@ api_pizzaria/
       userSchema.ts
       categorySchema.ts
       productSchema.ts
+      orderSchema.ts
     @types/
       express/
         index.d.ts
@@ -606,6 +614,107 @@ Authorization: Bearer <token_jwt>
 - 404: categoria nao encontrada
 - 400: erro retornado pelo fluxo de service
 
+### 6.10 Criar pedido
+
+- Metodo e rota: `POST /order`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(createOrderSchema)`
+- Objetivo: criar um novo pedido com numero da mesa e nome opcional do cliente.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Requisicao (JSON)
+
+```json
+{
+  "table": 5,
+  "name": "Joao Silva"
+}
+```
+
+#### Resposta de sucesso (201)
+
+```json
+{
+  "id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+  "table": 5,
+  "name": "Joao Silva",
+  "status": false,
+  "draft": true,
+  "createdAt": "2026-04-19T15:00:00.000Z"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: validacao Zod (mesa ausente/invalida)
+- 400: ja existe pedido ativo para a mesma mesa
+- 400: erro retornado pelo fluxo de service
+
+### 6.11 Listar pedidos
+
+- Metodo e rota: `GET /orders`
+- Query param opcional:
+  - `draft=true|false`
+- Valor padrao quando nao informado:
+  - `draft=false`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+- Objetivo: listar pedidos por status de rascunho, incluindo itens e dados resumidos dos produtos.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Exemplos de uso
+
+- `/orders?draft=true` -> retorna pedidos em rascunho
+- `/orders?draft=false` -> retorna pedidos enviados
+- `/orders` -> equivalente a `/orders?draft=false`
+
+#### Resposta de sucesso (200)
+
+```json
+[
+  {
+    "id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+    "table": 5,
+    "name": "Joao Silva",
+    "status": false,
+    "draft": true,
+    "createdAt": "2026-04-19T15:00:00.000Z",
+    "items": [
+      {
+        "id": "8b2d8c0a-8dc5-4bb8-9d31-59595f1ef850",
+        "amount": 2,
+        "product_id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+        "order_id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+        "product": {
+          "id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+          "name": "Pizza Calabresa",
+          "description": "Molho artesanal, queijo e calabresa",
+          "price": 59,
+          "banner": "https://res.cloudinary.com/.../products/1713111111_pizza-calabresa.jpg"
+        }
+      }
+    ]
+  }
+]
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validacao de Dados
@@ -638,6 +747,10 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 6. `listProductsByCategorySchema`
 - `query.category_id`: obrigatorio, string nao vazia
+
+7. `createOrderSchema`
+- `table`: obrigatorio, numero inteiro valido
+- `name`: opcional, string
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -759,6 +872,27 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 7. Se existir, service lista produtos vinculados ao `category_id`.
 8. Controller retorna `200` com a lista de produtos.
 
+### 9.8 Exemplo completo: `POST /order`
+
+1. Request chega em `/api/order` com body JSON.
+2. `isAuthenticated` valida token.
+3. `validateSchema(createOrderSchema)` valida `table` (inteiro obrigatorio) e `name` (opcional).
+4. `CreateOrderController.handle` extrai os dados e chama service.
+5. `CreateOrderService.execute` valida se ja existe pedido ativo para a mesa.
+6. Se ja existir pedido ativo para a mesma mesa, o fluxo retorna erro `400`.
+7. Se nao existir, service cria o registro na tabela `orders`.
+8. Controller retorna `201` com os dados do pedido criado.
+
+### 9.9 Exemplo completo: `GET /orders`
+
+1. Request chega em `/api/orders` com query opcional `draft`.
+2. `isAuthenticated` valida token.
+3. `ListOrdersController.handle` extrai o query param `draft`.
+4. `ListOrdersService.execute` converte o valor para booleano com padrao `false`.
+5. Service consulta `orders` filtrando por `draft`.
+6. Service retorna pedido com `items` e dados resumidos de `product` em cada item.
+7. Controller retorna `200` com a lista.
+
 ---
 
 ## 10. Seguranca e Configuracao
@@ -785,7 +919,8 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 ## 11. Observacoes Tecnicas Relevantes
 
-- O banco ja possui entidades para pedidos (`Order`, `OrderItem`), mas as rotas de pedido ainda nao estao implementadas.
+- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao e listagem de pedidos.
+- A camada de pedidos implementada atualmente cobre criacao (`POST /order`) e listagem (`GET /orders`).
 - A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
@@ -811,6 +946,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
 - No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
+- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, e tambem lista pedidos com seus respectivos itens.
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
