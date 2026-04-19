@@ -7,7 +7,7 @@ Esta aplicacao e uma API REST construida com Node.js + TypeScript para gerenciam
 Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
-- Produtos: criacao com upload de imagem (Cloudinary), listagem e desativacao.
+- Produtos: criacao com upload de imagem (Cloudinary), listagem, listagem por categoria e desativacao.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -95,6 +95,7 @@ api_pizzaria/
       product/
         CrateProductController.ts
         ListProductController.ts
+        ListProductsByCategoryController.ts
         DeleteProductControler.ts
     services/
       user/
@@ -107,6 +108,7 @@ api_pizzaria/
       product/
         CreateProductService.ts
         ListProductService.ts
+        ListProductsByCategoryService.ts
         DeleteProductService.ts
     middlewares/
       validateSchema.ts
@@ -556,6 +558,54 @@ Authorization: Bearer <token_jwt_admin>
 - 403: usuario nao e admin
 - 400: erro retornado pelo fluxo de service
 
+### 6.9 Listar produtos por categoria
+
+- Metodo e rota: `GET /category/product`
+- Query param obrigatorio:
+  - `category_id` (string)
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(listProductsByCategorySchema)`
+- Objetivo: retornar todos os produtos vinculados a uma categoria especifica.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Exemplo de uso
+
+- `/category/product?category_id=123`
+
+#### Resposta de sucesso (200)
+
+```json
+[
+  {
+    "id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+    "name": "Pizza Calabresa",
+    "description": "Molho artesanal, queijo e calabresa",
+    "price": 59,
+    "banner": "https://res.cloudinary.com/.../products/1713111111_pizza-calabresa.jpg",
+    "disable": false,
+    "category_id": "123",
+    "createdAt": "2026-04-19T12:00:00.000Z",
+    "category": {
+      "id": "123",
+      "name": "Pizzas"
+    }
+  }
+]
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: `category_id` nao enviado (Bad Request)
+- 404: categoria nao encontrada
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validacao de Dados
@@ -585,6 +635,9 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 5. `listProductSchema`
 - `query.disabled`: opcional, aceita apenas `"true"` ou `"false"`
 - Quando ausente, o controller assume `false` por padrao
+
+6. `listProductsByCategorySchema`
+- `query.category_id`: obrigatorio, string nao vazia
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -695,6 +748,17 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 5. `DeleteProductService.execute` atualiza o produto definindo `disable = true`.
 6. Controller retorna `200` com mensagem de sucesso.
 
+### 9.7 Exemplo completo: `GET /category/product`
+
+1. Request chega em `/api/category/product` com query `category_id`.
+2. `isAuthenticated` valida token.
+3. `validateSchema(listProductsByCategorySchema)` valida `category_id`.
+4. `ListProductsByCategoryController.handle` extrai `category_id` do query.
+5. `ListProductsByCategoryService.execute` valida se a categoria existe.
+6. Se a categoria nao existir, controller retorna `404`.
+7. Se existir, service lista produtos vinculados ao `category_id`.
+8. Controller retorna `200` com a lista de produtos.
+
 ---
 
 ## 10. Seguranca e Configuracao
@@ -722,7 +786,7 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 ## 11. Observacoes Tecnicas Relevantes
 
 - O banco ja possui entidades para pedidos (`Order`, `OrderItem`), mas as rotas de pedido ainda nao estao implementadas.
-- A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`) e desativacao (`DELETE /product`).
+- A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
 

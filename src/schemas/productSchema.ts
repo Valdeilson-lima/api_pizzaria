@@ -31,3 +31,11 @@ export const listProductSchema = z.object({
     disabled: z.enum(["true", "false"]).optional(),
   }),
 });
+
+export const listProductsByCategorySchema = z.object({
+  query: z.object({
+    category_id: z
+      .string({ message: "O ID da categoria é obrigatório" })
+      .min(1, { message: "O ID da categoria é obrigatório" }),
+  }),
+});
