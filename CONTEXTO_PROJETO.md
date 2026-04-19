@@ -7,7 +7,7 @@ Esta aplicacao e uma API REST construida com Node.js + TypeScript para gerenciam
 Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
-- Produtos: criacao com upload de imagem (Cloudinary).
+- Produtos: criacao com upload de imagem (Cloudinary), listagem e desativacao.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -95,6 +95,7 @@ api_pizzaria/
       product/
         CrateProductController.ts
         ListProductController.ts
+        DeleteProductControler.ts
     services/
       user/
         CreateUserService.ts
@@ -106,6 +107,7 @@ api_pizzaria/
       product/
         CreateProductService.ts
         ListProductService.ts
+        DeleteProductService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -425,7 +427,7 @@ Authorization: Bearer <token_jwt>
 
 ### 6.6 Criar produto com imagem
 
-- Metodo e rota: `POST /products`
+- Metodo e rota: `POST /product`
 - Content-Type: `multipart/form-data`
 - Middlewares (ordem de execucao):
   1. `isAuthenticated`
@@ -518,6 +520,40 @@ Authorization: Bearer <token_jwt>
 
 - 401: nao autenticado
 - 400: validacao Zod (`disabled` diferente de `true` ou `false`)
+- 400: erro retornado pelo fluxo de service
+
+### 6.8 Deletar produto (desativacao logica)
+
+- Metodo e rota: `DELETE /product`
+- Query param obrigatorio:
+  - `product_id`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `isAdmin`
+- Objetivo: desativar produto via soft delete (atualiza `disable` para `true`).
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt_admin>
+```
+
+#### Exemplo de uso
+
+- `/product?product_id=f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941`
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "message": "Produto desativado com sucesso"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 403: usuario nao e admin
 - 400: erro retornado pelo fluxo de service
 
 ---
@@ -626,9 +662,9 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 4. O service consulta categorias ordenadas por criacao descendente.
 5. Controller retorna `200` com a lista.
 
-### 9.4 Exemplo completo: `POST /products`
+### 9.4 Exemplo completo: `POST /product`
 
-1. Request chega em `/api/products` com `multipart/form-data`.
+1. Request chega em `/api/product` com `multipart/form-data`.
 2. `isAuthenticated` valida token.
 3. `isAdmin` valida perfil `ADMIN`.
 4. `upload.single("file")` processa arquivo em memoria e aplica validacoes de tipo/tamanho.
@@ -649,6 +685,15 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 5. Se nao houver query, o controller usa `false` como padrao.
 6. `ListProductService.execute` consulta `products` filtrando por `disable`.
 7. Controller retorna `200` com a lista filtrada.
+
+### 9.6 Exemplo completo: `DELETE /product`
+
+1. Request chega em `/api/product` com query `product_id`.
+2. `isAuthenticated` valida token.
+3. `isAdmin` valida perfil `ADMIN`.
+4. `DeleteProductController.handle` extrai `product_id` do query.
+5. `DeleteProductService.execute` atualiza o produto definindo `disable = true`.
+6. Controller retorna `200` com mensagem de sucesso.
 
 ---
 
@@ -677,7 +722,7 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 ## 11. Observacoes Tecnicas Relevantes
 
 - O banco ja possui entidades para pedidos (`Order`, `OrderItem`), mas as rotas de pedido ainda nao estao implementadas.
-- A camada de produto implementada atualmente cobre criacao (`POST /products`) e listagem filtrada (`GET /products`).
+- A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
 
@@ -701,7 +746,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - A requisicao entra pela rota e passa pela cadeia de middlewares.
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
-- No fluxo de produto, o service tambem integra com o Cloudinary para armazenar imagem.
+- No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
