@@ -1,61 +1,70 @@
-# Contexto Técnico do Projeto - API Pizzaria
+# Contexto Tecnico do Projeto - API Pizzaria
 
-## 1. Visão Geral
+## 1. Visao Geral
 
-Esta aplicação é uma API REST construída com Node.js + TypeScript para gerenciamento de usuários e operações iniciais da pizzaria (autenticação, perfil, cadastro e listagem de categorias).
+Esta aplicacao e uma API REST construida com Node.js + TypeScript para gerenciamento de usuarios e operacoes iniciais da pizzaria.
 
+Atualmente, os fluxos implementados cobrem:
+- Usuarios: cadastro, autenticacao e perfil.
+- Categorias: criacao e listagem.
+- Produtos: criacao com upload de imagem (Cloudinary).
+
+Informacoes base:
 - Base path da API: `/api`
-- Formato de dados: JSON
+- Formatos de entrada: JSON e `multipart/form-data` (na criacao de produto)
 - Banco de dados: PostgreSQL
 - ORM: Prisma
-- Validação de entrada: Zod
-- Autenticação: JWT
+- Validacao de entrada: Zod
+- Autenticacao: JWT
+- Upload de imagem: Multer (memoria) + Cloudinary
 
 ---
 
-## 2. Arquitetura da Aplicação
+## 2. Arquitetura da Aplicacao
 
-### 2.1 Padrão utilizado
+### 2.1 Padrao utilizado
 
-A aplicação segue um padrão em camadas, com separação de responsabilidades:
+A aplicacao segue padrao em camadas, com separacao de responsabilidades:
 
-1. `Routes`:
-- Define os endpoints.
+1. `Routes`
+- Define endpoints.
 - Encadeia middlewares.
 - Direciona para controllers.
 
-2. `Controllers`:
+2. `Controllers`
 - Recebem `req` e `res`.
-- Extraem dados da requisição.
-- Delegam regras de negócio para services.
+- Extraem dados da requisicao.
+- Delegam regra de negocio para services.
 - Retornam resposta HTTP.
 
-3. `Services`:
-- Implementam lógica de negócio.
-- Fazem validações de regra de domínio (ex.: duplicidade de categoria/usuário).
-- Executam operações no banco via Prisma.
+3. `Services`
+- Implementam logica de negocio.
+- Validam regras de dominio (duplicidade, existencia de categoria etc.).
+- Executam operacoes no banco via Prisma.
+- No fluxo de produto, fazem upload da imagem para Cloudinary.
 
-4. `Prisma Client`:
+4. `Prisma Client`
 - Camada de acesso a dados.
-- Conexão com PostgreSQL usando `@prisma/adapter-pg`.
+- Conexao com PostgreSQL usando `@prisma/adapter-pg`.
 
-5. `Middlewares`:
-- Validação de schema.
-- Autenticação JWT.
-- Autorização por perfil (admin).
+5. `Middlewares`
+- Validacao de schema.
+- Autenticacao JWT.
+- Autorizacao por perfil (admin).
+- Upload de arquivo com Multer.
 
 ### 2.2 Fluxo entre camadas (macro)
 
-1. A requisição entra pela rota.
-2. Middlewares de validação/autenticação/autorização são executados.
-3. O controller recebe a requisição e chama o service.
-4. O service aplica regras de negócio e consulta/persiste dados no banco.
-5. O service retorna os dados para o controller.
+1. A requisicao entra pela rota.
+2. Middlewares de validacao/autenticacao/autorizacao/upload sao executados.
+3. O controller chama o service.
+4. O service aplica regras de negocio e persiste/consulta dados.
+5. O service retorna o resultado para o controller.
 6. O controller envia a resposta HTTP final.
 
 ---
 
-## 3. Organização de Pastas
+## 3. Organizacao de Pastas
 
 ```text
 api_pizzaria/
@@ -72,6 +81,9 @@ api_pizzaria/
     routes.ts
     prisma/
       index.ts
+    config/
+      cloudinary.ts
+      multer.ts
     controller/
       user/
         createUserController.ts
@@ -80,6 +92,9 @@ api_pizzaria/
       category/
         CrateCategoryController.ts
         ListCategoryController.ts
+      product/
+        CrateProductController.ts
+        ListProductController.ts
     services/
       user/
         CreateUserService.ts
@@ -88,6 +103,9 @@ api_pizzaria/
       category/
         CreateCategoryService.ts
         ListCategoryService.ts
+      product/
+        CreateProductService.ts
+        ListProductService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -95,6 +113,7 @@ api_pizzaria/
     schemas/
       userSchema.ts
       categorySchema.ts
+      productSchema.ts
     @types/
       express/
         index.d.ts
@@ -105,27 +124,28 @@ api_pizzaria/
 
 ### 3.1 Responsabilidade por pasta
 
-- `src/server.ts`: bootstrap da aplicação Express, CORS, parsers e error handler global.
-- `src/routes.ts`: definição de rotas e pipeline de middlewares por endpoint.
-- `src/controller`: interface HTTP (entrada/saída).
-- `src/services`: regras de negócio e acesso ao banco.
-- `src/middlewares`: segurança e validação transversal.
-- `src/schemas`: schemas Zod para contratos de entrada.
-- `src/prisma/index.ts`: instanciação do PrismaClient.
+- `src/server.ts`: bootstrap do Express, CORS, parsers e error handler global.
+- `src/routes.ts`: definicao de rotas e ordem de middlewares por endpoint.
+- `src/controller`: camada HTTP (entrada/saida).
+- `src/services`: regras de negocio e acesso ao banco.
+- `src/config`: configuracoes de infraestrutura (Cloudinary e Multer).
+- `src/middlewares`: seguranca e validacao transversal.
+- `src/schemas`: schemas Zod dos contratos de entrada.
+- `src/prisma/index.ts`: instancia do Prisma Client com adapter PostgreSQL.
 - `prisma/schema.prisma`: modelagem da base.
-- `prisma/migrations`: histórico SQL versionado.
+- `prisma/migrations`: historico SQL versionado.
 - `src/generated/prisma`: cliente Prisma gerado automaticamente.
 
 ---
 
-## 4. Tecnologias e Versões
+## 4. Tecnologias e Versoes
 
 ### 4.1 Runtime e linguagem
 
-- Node.js (runtime, versão não fixada em arquivo)
+- Node.js (runtime, versao nao fixada em arquivo)
 - TypeScript `^6.0.2`
 
-### 4.2 Dependências principais
+### 4.2 Dependencias principais
 
 - express `^5.2.1`
 - cors `^2.8.6`
@@ -137,27 +157,31 @@ api_pizzaria/
 - @prisma/client `^7.7.0`
 - @prisma/adapter-pg `^7.7.0`
 - pg `^8.20.0`
+- multer `^2.1.1`
+- cloudinary `^2.9.0`
 - tsx `^4.21.0`
 
-### 4.3 Dependências de tipos (dev)
+### 4.3 Dependencias de tipos (dev)
 
 - @types/express `^5.0.6`
 - @types/jsonwebtoken `^9.0.10`
+- @types/multer `^2.1.0`
 - @types/node `^25.6.0`
 - @types/pg `^8.20.0`
 - @types/cors `^2.8.19`
 
-### 4.4 Scripts disponíveis
+### 4.4 Scripts disponiveis
 
 - `npm run dev`: sobe API em modo watch (`tsx watch src/server.ts`)
-- `npm run build`: compilação TypeScript (`tsc -p tsconfig.json`)
+- `npm run build`: compilacao TypeScript (`tsc -p tsconfig.json`)
 - `npm run start`: executa build (`node dist/server.js`)
+- `npm run test`: placeholder atual (nao ha suite de testes implementada)
 
 ---
 
 ## 5. Modelagem de Banco de Dados
 
-A modelagem está definida em `prisma/schema.prisma`.
+A modelagem esta definida em `prisma/schema.prisma`.
 
 ### 5.1 Enum
 
@@ -168,14 +192,14 @@ A modelagem está definida em `prisma/schema.prisma`.
 1. `User` (tabela `users`)
 - `id` (PK, UUID)
 - `name` (string)
-- `email` (string, único)
+- `email` (string, unico)
 - `password` (string, hash bcrypt)
 - `role` (enum `Role`, default `STAFF`)
 - `createdAt`, `updatedAt`
 
 2. `Category` (tabela `categories`)
 - `id` (PK, UUID)
-- `name` (string, único)
+- `name` (string, unico)
 - `createdAt`, `updatedAt`
 - Relacionamento: 1:N com `Product`
 
@@ -184,7 +208,7 @@ A modelagem está definida em `prisma/schema.prisma`.
 - `name` (string)
 - `price` (int)
 - `description` (string)
-- `banner` (string)
+- `banner` (string: URL da imagem no Cloudinary)
 - `disable` (boolean, default `false`)
 - `category_id` (FK -> `categories.id`)
 - `createdAt`, `updatedAt`
@@ -213,7 +237,7 @@ A modelagem está definida em `prisma/schema.prisma`.
 - `Category` -> `Product`: `onDelete: Cascade`
 - `Order` -> `OrderItem`: `onDelete: Cascade`
 - `Product` -> `OrderItem`: `onDelete: Cascade`
-- Índices únicos:
+- Indices unicos:
   - `users.email`
   - `categories.name`
 
@@ -223,14 +247,14 @@ A modelagem está definida em `prisma/schema.prisma`.
 
 Base URL local (exemplo): `http://localhost:{PORT}/api`
 
-### 6.1 Criar usuário
+### 6.1 Criar usuario
 
-- Método e rota: `POST /users`
+- Metodo e rota: `POST /users`
 - Middlewares:
   - `validateSchema(createUserSchema)`
-- Objetivo: criar conta de usuário com senha criptografada.
+- Objetivo: criar conta de usuario com senha criptografada.
 
-#### Requisição
+#### Requisicao (JSON)
 
 ```json
 {
@@ -252,19 +276,19 @@ Base URL local (exemplo): `http://localhost:{PORT}/api`
 }
 ```
 
-#### Possíveis erros
+#### Possiveis erros
 
-- 400: validação Zod
-- 400: usuário já existe
+- 400: validacao Zod
+- 400: usuario ja existe
 
-### 6.2 Autenticar usuário (login)
+### 6.2 Autenticar usuario (login)
 
-- Método e rota: `POST /session`
+- Metodo e rota: `POST /session`
 - Middlewares:
   - `validateSchema(authUserSchema)`
-- Objetivo: autenticar usuário e emitir JWT.
+- Objetivo: autenticar usuario e emitir JWT.
 
-#### Requisição
+#### Requisicao (JSON)
 
 ```json
 {
@@ -286,18 +310,18 @@ Base URL local (exemplo): `http://localhost:{PORT}/api`
 }
 ```
 
-#### Possíveis erros
+#### Possiveis erros
 
-- 400: validação Zod
-- 400: usuário não encontrado
+- 400: validacao Zod
+- 400: usuario nao encontrado
 - 400: senha incorreta
 
-### 6.3 Detalhar usuário autenticado
+### 6.3 Detalhar usuario autenticado
 
-- Método e rota: `GET /me`
+- Metodo e rota: `GET /me`
 - Middlewares:
   - `isAuthenticated`
-- Objetivo: retornar dados do usuário autenticado.
+- Objetivo: retornar dados do usuario autenticado.
 
 #### Headers
 
@@ -317,16 +341,16 @@ Authorization: Bearer <token_jwt>
 }
 ```
 
-#### Possíveis erros
+#### Possiveis erros
 
-- 401: token não fornecido
-- 401: token inválido
+- 401: token nao fornecido
+- 401: token invalido
 - 400: erro retornado pelo fluxo de service
 
 ### 6.4 Criar categoria
 
-- Método e rota: `POST /categories`
-- Middlewares (ordem de execução):
+- Metodo e rota: `POST /categories`
+- Middlewares (ordem de execucao):
   1. `isAuthenticated`
   2. `isAdmin`
   3. `validateSchema(createCategorySchema)`
@@ -338,7 +362,7 @@ Authorization: Bearer <token_jwt>
 Authorization: Bearer <token_jwt_admin>
 ```
 
-#### Requisição
+#### Requisicao (JSON)
 
 ```json
 {
@@ -356,19 +380,19 @@ Authorization: Bearer <token_jwt_admin>
 }
 ```
 
-#### Possíveis erros
+#### Possiveis erros
 
-- 401: não autenticado
-- 403: usuário não é admin
-- 400: validação Zod
-- 400: categoria já existe
+- 401: nao autenticado
+- 403: usuario nao e admin
+- 400: validacao Zod
+- 400: categoria ja existe
 
 ### 6.5 Listar categorias
 
-- Método e rota: `GET /category`
+- Metodo e rota: `GET /category`
 - Middlewares:
   - `isAuthenticated`
-- Objetivo: retornar todas as categorias cadastradas no banco.
+- Objetivo: retornar categorias cadastradas no banco (ordenadas por `createdAt` desc).
 
 #### Headers
 
@@ -393,45 +417,148 @@ Authorization: Bearer <token_jwt>
 ]
 ```
 
-#### Possíveis erros
+#### Possiveis erros
 
-- 401: token não fornecido
-- 401: token inválido
+- 401: token nao fornecido
+- 401: token invalido
+- 400: erro retornado pelo fluxo de service
+
+### 6.6 Criar produto com imagem
+
+- Metodo e rota: `POST /products`
+- Content-Type: `multipart/form-data`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `isAdmin`
+  3. `upload.single("file")`
+  4. `validateSchema(createProductSchema)`
+- Objetivo: cadastrar produto com upload de imagem para Cloudinary (somente admin).
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt_admin>
+```
+
+#### Campos de formulario (`multipart/form-data`)
+
+- `name` (texto, obrigatorio)
+- `price` (texto numerico inteiro >= 0)
+- `description` (texto, obrigatorio)
+- `category_id` (texto, obrigatorio)
+- `file` (arquivo de imagem, obrigatorio)
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+  "name": "Pizza Calabresa",
+  "description": "Molho artesanal, queijo e calabresa",
+  "price": 59,
+  "banner": "https://res.cloudinary.com/.../products/1713111111_pizza-calabresa.jpg",
+  "category_id": "b6221375-3701-42f4-b840-8f4a579791f2"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 403: usuario nao e admin
+- 400: validacao Zod
+- 400: imagem nao enviada
+- 400: tipo de arquivo invalido (aceitos: JPEG, JPG, PNG)
+- 400: categoria nao encontrada
+- 400: produto com nome ja cadastrado
+- 400: preco invalido (nao inteiro ou menor que zero)
+- 400: erro no upload para Cloudinary
+
+### 6.7 Listar produtos
+
+- Metodo e rota: `GET /products`
+- Query param opcional:
+  - `disabled=true|false`
+- Valor padrao quando nao informado:
+  - `disabled=false`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(listProductSchema)`
+- Objetivo: listar produtos por status de habilitacao.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Exemplos de uso
+
+- `/products?disabled=false` -> retorna produtos habilitados (`disable = false`)
+- `/products?disabled=true` -> retorna produtos desabilitados (`disable = true`)
+- `/products` -> equivalente a `/products?disabled=false`
+
+#### Resposta de sucesso (200)
+
+```json
+[
+  {
+    "id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+    "name": "Pizza Calabresa",
+    "description": "Molho artesanal, queijo e calabresa",
+    "price": 59,
+    "banner": "https://res.cloudinary.com/.../products/1713111111_pizza-calabresa.jpg",
+    "disable": false,
+    "category_id": "b6221375-3701-42f4-b840-8f4a579791f2",
+    "createdAt": "2026-04-19T12:00:00.000Z"
+  }
+]
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: validacao Zod (`disabled` diferente de `true` ou `false`)
 - 400: erro retornado pelo fluxo de service
 
 ---
 
-## 7. Validação de Dados
+## 7. Validacao de Dados
 
-A validação é feita por Zod, aplicada no middleware `validateSchema`.
+A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`, `query` e `params`.
 
 ### 7.1 Schemas atuais
 
 1. `createUserSchema`
-- `name`: string, obrigatório, mínimo 1 caractere
-- `email`: formato de email válido
-- `password`: string, obrigatório, mínimo 6 caracteres
+- `name`: string, obrigatorio, minimo 1 caractere
+- `email`: email valido
+- `password`: string, obrigatorio, minimo 6 caracteres
 
 2. `authUserSchema`
-- `email`: formato de email válido
-- `password`: string, mínimo 6 caracteres
+- `email`: email valido
+- `password`: string, minimo 6 caracteres
 
 3. `createCategorySchema`
-- `name`: string, obrigatório, mínimo 3 caracteres
+- `name`: string, obrigatorio, minimo 3 caracteres
 
-### 7.2 Como a validação é aplicada
+4. `createProductSchema`
+- `name`: string, obrigatorio
+- `price`: string obrigatoria com refine para inteiro >= 0
+- `description`: string, obrigatoria
+- `category_id`: string, obrigatoria
 
-- A rota chama `validateSchema(schema)`.
-- O middleware valida `body`, `query` e `params` com `parseAsync`.
-- Em erro de validação, retorna HTTP 400 com estrutura:
+5. `listProductSchema`
+- `query.disabled`: opcional, aceita apenas `"true"` ou `"false"`
+- Quando ausente, o controller assume `false` por padrao
+
+### 7.2 Estrutura de erro de validacao (HTTP 400)
 
 ```json
 {
-  "error": "Erro de validação",
+  "error": "Erro de validacao",
   "details": [
     {
       "campo": "name",
-      "message": "O nome é obrigatório"
+      "message": "O nome e obrigatorio"
     }
   ]
 }
@@ -442,92 +569,121 @@ A validação é feita por Zod, aplicada no middleware `validateSchema`.
 ## 8. Middlewares e Responsabilidades
 
 1. `validateSchema`
-- Responsável por validação de contrato de entrada.
-- Evita entrada inválida chegar ao controller.
+- Valida contrato de entrada com Zod.
+- Em caso de erro de schema, responde 400 com `details` por campo.
 
 2. `isAuthenticated`
-- Lê header `Authorization`.
+- Le `Authorization`.
 - Valida JWT com `JWT_SECRET`.
 - Injeta `req.userId` com o `sub` do token.
 
 3. `isAdmin`
-- Usa `req.userId` para buscar usuário no banco.
-- Garante que `user.role === "ADMIN"`.
-- Bloqueia acesso para usuários sem privilégio.
+- Busca usuario pelo `req.userId`.
+- Garante `user.role === "ADMIN"`.
+- Bloqueia acesso para usuarios sem privilegio.
 
-4. Error handler global (`server.ts`)
-- Trata erros não capturados.
-- Retorna 400 para instâncias de `Error` e 500 para casos não mapeados.
+4. `upload.single("file")` (Multer)
+- Faz upload em memoria (`memoryStorage`).
+- Limite de tamanho: 5MB.
+- Restringe tipos MIME para `image/jpeg`, `image/jpg`, `image/png`.
+
+5. Error handler global (`server.ts`)
+- Trata erros nao capturados.
+- Retorna 400 para instancias de `Error`.
+- Retorna 500 para casos nao mapeados.
 
 ---
 
-## 9. Fluxo de Requisição Detalhado
+## 9. Fluxo de Requisicao Detalhado
 
-### 9.1 Fluxo padrão (visão geral)
+### 9.1 Fluxo padrao (visao geral)
 
-1. Cliente envia requisição para `/api/...`.
+1. Cliente envia requisicao para `/api/...`.
 2. `server.ts` encaminha para `routes.ts`.
 3. Middlewares da rota executam em ordem.
 4. Controller recebe dados e chama service.
-5. Service processa regra de negócio.
+5. Service processa regra de negocio.
 6. Service interage com Prisma e banco PostgreSQL.
 7. Service retorna resultado ao controller.
 8. Controller serializa resposta HTTP.
-9. Se houver erro, pode ser tratado em controller/service ou pelo handler global.
+9. Erros podem ser tratados no proprio fluxo ou pelo handler global.
 
 ### 9.2 Exemplo completo: `POST /categories`
 
 1. Request chega em `/api/categories`.
 2. `isAuthenticated` valida token e define `req.userId`.
-3. `isAdmin` valida se o usuário tem role `ADMIN`.
+3. `isAdmin` valida se o usuario tem role `ADMIN`.
 4. `validateSchema(createCategorySchema)` valida payload.
 5. `CreateCategoryController.handle` extrai `name`.
-6. `CreateCategoryService.execute`:
-- verifica se já existe categoria com mesmo nome;
-- se existir, lança erro;
-- se não existir, cria registro em `categories`.
+6. `CreateCategoryService.execute` verifica duplicidade e cria categoria.
 7. Controller retorna `201` com dados da categoria criada.
-8. Em falha, retorna mensagem de erro compatível com o fluxo.
 
 ### 9.3 Exemplo completo: `GET /category`
 
 1. Request chega em `/api/category`.
 2. `isAuthenticated` valida token e define `req.userId`.
 3. `ListCategoryController.handle` chama `ListCategoryService.execute`.
-4. `ListCategoryService.execute` consulta todas as categorias em `categories`.
-5. O service retorna os dados selecionados (`id`, `name`, `createdAt`) ordenados por data de criação.
-6. Controller retorna `200` com a lista de categorias.
-7. Em falha, retorna mensagem de erro compatível com o fluxo.
+4. O service consulta categorias ordenadas por criacao descendente.
+5. Controller retorna `200` com a lista.
+
+### 9.4 Exemplo completo: `POST /products`
+
+1. Request chega em `/api/products` com `multipart/form-data`.
+2. `isAuthenticated` valida token.
+3. `isAdmin` valida perfil `ADMIN`.
+4. `upload.single("file")` processa arquivo em memoria e aplica validacoes de tipo/tamanho.
+5. `validateSchema(createProductSchema)` valida campos textuais do formulario.
+6. `CreateProductController.handle` valida `price` inteiro >= 0 e presenca de arquivo.
+7. `CreateProductService.execute` valida categoria existente.
+8. Service envia imagem para Cloudinary e recebe `secure_url`.
+9. Service valida duplicidade de nome de produto.
+10. Service cria registro em `products` com `banner` = URL do Cloudinary.
+11. Controller retorna `200` com produto criado.
+
+### 9.5 Exemplo completo: `GET /products`
+
+1. Request chega em `/api/products` com query opcional `disabled`.
+2. `isAuthenticated` valida token.
+3. `validateSchema(listProductSchema)` valida o valor de query quando enviado.
+4. `ListProductController.handle` converte o query param para booleano.
+5. Se nao houver query, o controller usa `false` como padrao.
+6. `ListProductService.execute` consulta `products` filtrando por `disable`.
+7. Controller retorna `200` com a lista filtrada.
 
 ---
 
-## 10. Segurança e Configuração
+## 10. Seguranca e Configuracao
 
-### 10.1 Variáveis de ambiente esperadas
+### 10.1 Variaveis de ambiente esperadas
 
 - `PORT`: porta HTTP da API.
-- `DATABASE_URL`: conexão PostgreSQL usada pelo Prisma adapter.
-- `JWT_SECRET`: chave para assinatura e validação de token JWT.
+- `DATABASE_URL`: conexao PostgreSQL usada pelo Prisma adapter.
+- `JWT_SECRET`: chave para assinatura e validacao de token JWT.
+- `CLOUDINARY_CLOUD_NAME`: identificador da conta Cloudinary.
+- `CLOUDINARY_API_KEY`: chave de API Cloudinary.
+- `CLOUDINARY_API_SECRET`: segredo da API Cloudinary.
 
-### 10.2 Medidas já implementadas
+### 10.2 Medidas implementadas
 
-- Senhas com hash `bcrypt` (salt rounds = 8).
-- JWT com expiração de 1 dia.
-- Controle de acesso por role para endpoint administrativo.
-- Controle de acesso por autenticação para endpoint de listagem de categorias.
-- Validação de payload com Zod.
-
----
-
-## 11. Observações Técnicas Relevantes
-
-- O projeto já possui entidades no banco para produtos e pedidos, mas as rotas implementadas no momento cobrem somente usuários e categorias (cadastro e listagem).
-- Existe consistência de padrão Controller -> Service -> Prisma na maior parte do código.
-- O cliente Prisma é gerado em `src/generated/prisma` com provider `prisma-client`.
+- Senhas com hash `bcrypt` (`salt rounds = 8`).
+- JWT com expiracao de 1 dia.
+- Controle de acesso por role para endpoints administrativos.
+- Controle de acesso por autenticacao para endpoints protegidos.
+- Validacao de payload com Zod.
+- Restricao de tipo/tamanho no upload de imagem.
 
 ---
 
-## 12. Comandos Úteis de Desenvolvimento
+## 11. Observacoes Tecnicas Relevantes
+
+- O banco ja possui entidades para pedidos (`Order`, `OrderItem`), mas as rotas de pedido ainda nao estao implementadas.
+- A camada de produto implementada atualmente cobre criacao (`POST /products`) e listagem filtrada (`GET /products`).
+- O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
+- O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
+
+---
+
+## 12. Comandos Uteis de Desenvolvimento
 
 ```bash
 npm install
@@ -536,16 +692,16 @@ npm run build
 npm run start
 ```
 
-Para evolução de banco (Prisma), usar fluxo de migrations no diretório `prisma/migrations`.
+Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/migrations`.
 
 ---
 
-## 13. Resumo Executivo da Arquitetura Solicitada
+## 13. Resumo Executivo da Arquitetura Atual
 
-- A requisição entra pela rota.
-- O controller recebe a requisição e delega para o service.
-- O service contém a lógica de negócio, realiza operações e comunicação com o banco de dados.
-- O resultado retorna para o controller.
-- O controller envia a resposta final ao usuário.
+- A requisicao entra pela rota e passa pela cadeia de middlewares.
+- O controller recebe a entrada e delega para o service.
+- O service aplica regras de negocio e acessa o banco via Prisma.
+- No fluxo de produto, o service tambem integra com o Cloudinary para armazenar imagem.
+- O resultado retorna para o controller, que envia a resposta final ao cliente.
 
-Este documento serve como referência central para manutenção e evolução da API.
+Este documento serve como referencia central para manutencao e evolucao da API.
