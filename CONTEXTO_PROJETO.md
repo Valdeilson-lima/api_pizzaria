@@ -265,6 +265,25 @@ A modelagem esta definida em `prisma/schema.prisma`.
 
 Base URL local (exemplo): `http://localhost:{PORT}/api`
 
+### 6.0 Mapa rapido de rotas atuais
+
+- `POST /users` - Criar usuario
+- `POST /session` - Autenticar usuario
+- `GET /me` - Detalhar usuario autenticado
+- `POST /categories` - Criar categoria (admin)
+- `GET /category` - Listar categorias
+- `POST /product` - Criar produto com imagem (admin)
+- `GET /products` - Listar produtos
+- `GET /category/product` - Listar produtos por categoria
+- `DELETE /product` - Desativar produto (admin)
+- `POST /order` - Criar pedido
+- `GET /orders` - Listar pedidos
+- `GET /order/detail` - Detalhar pedido
+- `POST /order/add` - Adicionar item ao pedido
+- `DELETE /order/remove` - Remover item do pedido
+- `PUT /order/send` - Enviar pedido para cozinha
+- `PUT /order/finish` - Finalizar pedido
+
 ### 6.1 Criar usuario
 
 - Metodo e rota: `POST /users`
@@ -869,6 +888,7 @@ Authorization: Bearer <token_jwt>
 - Metodo e rota: `PUT /order/send`
 - Middlewares (ordem de execucao):
   1. `isAuthenticated`
+  2. `validateSchema(sendOrderSchema)`
 - Objetivo: enviar pedido para cozinha, alterando `draft` para `false`.
 
 #### Headers
@@ -899,6 +919,50 @@ Authorization: Bearer <token_jwt>
     "createdAt": "2026-04-19T15:00:00.000Z"
   },
   "message": "Pedido enviado com sucesso"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 404: pedido nao encontrado
+- 400: erro retornado pelo fluxo de service
+
+### 6.16 Finalizar pedido
+
+- Metodo e rota: `PUT /order/finish`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(finishOrderSchema)`
+- Objetivo: finalizar pedido, alterando `status` para `true`.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Requisicao (JSON)
+
+```json
+{
+  "order_id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f"
+}
+```
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "updatedOrder": {
+    "id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+    "table": 5,
+    "name": "Joao Silva",
+    "status": true,
+    "draft": false,
+    "createdAt": "2026-04-19T15:00:00.000Z"
+  },
+  "message": "Pedido finalizado com sucesso"
 }
 ```
 
@@ -959,6 +1023,9 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 11. `sendOrderSchema`
 - `order_id`: obrigatorio, string nao vazia
 - `name`: opcional, string (minimo 2 caracteres)
+
+12. `finishOrderSchema`
+- `order_id`: obrigatorio, string nao vazia
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -1131,11 +1198,12 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 1. Request chega em `/api/order/send` com body JSON.
 2. `isAuthenticated` valida token.
-3. `SendOrderController.handle` extrai `order_id` e `name` do body.
-4. `SendOrderService.execute` valida se o pedido existe.
-5. Se o pedido nao existir, retorna erro `404`.
-6. Se existir, service atualiza o pedido com `draft = false`.
-7. Controller retorna `200` com os dados atualizados e mensagem de sucesso.
+3. `validateSchema(sendOrderSchema)` valida `order_id` e `name`.
+4. `SendOrderController.handle` extrai `order_id` e `name` do body.
+5. `SendOrderService.execute` valida se o pedido existe.
+6. Se o pedido nao existir, retorna erro `404`.
+7. Se existir, service atualiza o pedido com `draft = false`.
+8. Controller retorna `200` com os dados atualizados e mensagem de sucesso.
 
 ### 9.13 Exemplo completo: `GET /order/detail`
 
@@ -1146,6 +1214,17 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 5. `DetailOrderService.execute` busca o pedido por `id` com seus itens e produtos.
 6. Se o pedido nao existir, retorna erro `404`.
 7. Controller retorna `200` com os detalhes completos do pedido.
+
+### 9.14 Exemplo completo: `PUT /order/finish`
+
+1. Request chega em `/api/order/finish` com body JSON.
+2. `isAuthenticated` valida token.
+3. `validateSchema(finishOrderSchema)` valida `order_id`.
+4. `FinishOrderController.handle` extrai `order_id` do body.
+5. `FinishOrderService.execute` valida se o pedido existe.
+6. Se o pedido nao existir, retorna erro `404`.
+7. Se existir, service atualiza o pedido com `status = true`.
+8. Controller retorna `200` com os dados atualizados e mensagem de sucesso.
 
 ---
 
@@ -1173,8 +1252,8 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 ## 11. Observacoes Tecnicas Relevantes
 
-- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao/remocao de itens e envio para cozinha.
-- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`), remocao de item (`DELETE /order/remove`) e envio (`PUT /order/send`).
+- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, detalhamento, adicao/remocao de itens, envio para cozinha e finalizacao.
+- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), detalhamento (`GET /order/detail`), adicao de item (`POST /order/add`), remocao de item (`DELETE /order/remove`), envio (`PUT /order/send`) e finalizacao (`PUT /order/finish`).
 - A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
@@ -1200,7 +1279,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
 - No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
-- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista/detalha pedidos com seus itens, adiciona e remove itens, e envia o pedido para cozinha (`draft = false`).
+- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista/detalha pedidos com seus itens, adiciona e remove itens, envia o pedido para cozinha (`draft = false`) e finaliza o pedido (`status = true`).
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
