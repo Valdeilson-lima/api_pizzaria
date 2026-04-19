@@ -104,6 +104,9 @@ api_pizzaria/
         DetailOrderController.ts
         AddItemController.ts
         RemoveItemController.ts
+        RemoveOrderController.ts
+        SendOrderController.ts
+        FinishOrderController.ts
     services/
       user/
         CreateUserService.ts
@@ -123,6 +126,9 @@ api_pizzaria/
         DetailOrderService.ts
         AddItemOrderService.ts
         RemoveItemOrderService.ts
+        RemoveOrderService.ts
+        SendOrderService.ts
+        FinishOrderService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -153,6 +159,74 @@ api_pizzaria/
 - `prisma/schema.prisma`: modelagem da base.
 - `prisma/migrations`: historico SQL versionado.
 - `src/generated/prisma`: cliente Prisma gerado automaticamente.
+
+### 3.2 Controllers implementados
+
+- User:
+  - `createUserController`
+  - `authUserController`
+  - `DetailUserControler`
+- Category:
+  - `CreateCategoryController`
+  - `ListCategoryController`
+- Product:
+  - `CreateProductController`
+  - `ListProductController`
+  - `ListProductsByCategoryController`
+  - `DeleteProductController`
+- Order:
+  - `CreateOrderController`
+  - `ListOrdersController`
+  - `DetailOrderController`
+  - `AddItemController`
+  - `RemoveItemController`
+  - `RemoveOrderController`
+  - `SendOrderController`
+  - `FinishOrderController`
+
+### 3.3 Services implementados
+
+- User:
+  - `CreateUserService`
+  - `AuthUserService`
+  - `DetailUserService`
+- Category:
+  - `CreateCategoryService`
+  - `ListCategoryService`
+- Product:
+  - `CreateProductService`
+  - `ListProductService`
+  - `ListProductsByCategoryService`
+  - `DeleteProductService`
+- Order:
+  - `CreateOrderService`
+  - `ListOrdersService`
+  - `DetailOrderService`
+  - `AddItemOrderService`
+  - `RemoveItemOrderService`
+  - `RemoveOrderService`
+  - `SendOrderService`
+  - `FinishOrderService`
+
+### 3.4 Rotas implementadas (`/api`)
+
+- `POST /users`
+- `POST /session`
+- `GET /me`
+- `POST /categories`
+- `GET /category`
+- `POST /product`
+- `GET /products`
+- `GET /category/product`
+- `DELETE /product`
+- `POST /order`
+- `GET /orders`
+- `GET /order/detail`
+- `POST /order/add`
+- `DELETE /order/remove`
+- `DELETE /order`
+- `PUT /order/send`
+- `PUT /order/finish`
 
 ---
 
