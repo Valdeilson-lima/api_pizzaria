@@ -8,7 +8,7 @@ Atualmente, os fluxos implementados cobrem:
 - Usuarios: cadastro, autenticacao e perfil.
 - Categorias: criacao e listagem.
 - Produtos: criacao com upload de imagem (Cloudinary), listagem, listagem por categoria e desativacao.
-- Pedidos: criacao e listagem de pedidos.
+- Pedidos: criacao, listagem, adicao e remocao de itens do pedido.
 
 Informacoes base:
 - Base path da API: `/api`
@@ -101,6 +101,8 @@ api_pizzaria/
       order/
         CreateOrderController.ts
         ListOrdersController.ts
+        AddItemController.ts
+        RemoveItemController.ts
     services/
       user/
         CreateUserService.ts
@@ -117,6 +119,8 @@ api_pizzaria/
       order/
         CreateOrderService.ts
         ListOrdersService.ts
+        AddItemOrderService.ts
+        RemoveItemOrderService.ts
     middlewares/
       validateSchema.ts
       isAuthenticated.ts
@@ -715,6 +719,93 @@ Authorization: Bearer <token_jwt>
 - 401: nao autenticado
 - 400: erro retornado pelo fluxo de service
 
+### 6.12 Adicionar item ao pedido
+
+- Metodo e rota: `POST /order/add`
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(addItemSchema)`
+- Objetivo: adicionar um item (produto e quantidade) a um pedido existente.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Requisicao (JSON)
+
+```json
+{
+  "order_id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+  "product_id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+  "amount": 2
+}
+```
+
+#### Resposta de sucesso (201)
+
+```json
+{
+  "id": "8b2d8c0a-8dc5-4bb8-9d31-59595f1ef850",
+  "order_id": "c7c5a73d-f8e6-4db3-a2ac-2735986f5b9f",
+  "product_id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+  "amount": 2,
+  "createdAt": "2026-04-19T16:00:00.000Z",
+  "product": {
+    "id": "f2c4f0d1-8fd3-4bd0-9bc2-f0d4a0ef9941",
+    "name": "Pizza Calabresa",
+    "price": 59,
+    "description": "Molho artesanal, queijo e calabresa",
+    "banner": "https://res.cloudinary.com/.../products/1713111111_pizza-calabresa.jpg"
+  }
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: validacao Zod (`order_id`, `product_id` ou `amount` invalidos)
+- 404: pedido nao encontrado
+- 404: produto nao encontrado
+- 400: pedido ja foi finalizado
+- 400: erro retornado pelo fluxo de service
+
+### 6.13 Remover item do pedido
+
+- Metodo e rota: `DELETE /order/remove`
+- Query param obrigatorio:
+  - `item_id` (string)
+- Middlewares (ordem de execucao):
+  1. `isAuthenticated`
+  2. `validateSchema(removeItemSchema)`
+- Objetivo: remover um item existente da tabela `order_items`.
+
+#### Headers
+
+```http
+Authorization: Bearer <token_jwt>
+```
+
+#### Exemplo de uso
+
+- `/order/remove?item_id=8b2d8c0a-8dc5-4bb8-9d31-59595f1ef850`
+
+#### Resposta de sucesso (200)
+
+```json
+{
+  "message": "Item removido com sucesso"
+}
+```
+
+#### Possiveis erros
+
+- 401: nao autenticado
+- 400: `item_id` nao enviado (Bad Request)
+- 404: item do pedido nao encontrado
+- 400: erro retornado pelo fluxo de service
+
 ---
 
 ## 7. Validacao de Dados
@@ -751,6 +842,14 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 7. `createOrderSchema`
 - `table`: obrigatorio, numero inteiro valido
 - `name`: opcional, string
+
+8. `addItemSchema`
+- `order_id`: obrigatorio, string nao vazia
+- `product_id`: obrigatorio, string nao vazia
+- `amount`: obrigatorio, numero inteiro positivo
+
+9. `removeItemSchema`
+- `query.item_id`: obrigatorio, string nao vazia
 
 ### 7.2 Estrutura de erro de validacao (HTTP 400)
 
@@ -893,6 +992,32 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 6. Service retorna pedido com `items` e dados resumidos de `product` em cada item.
 7. Controller retorna `200` com a lista.
 
+### 9.10 Exemplo completo: `POST /order/add`
+
+1. Request chega em `/api/order/add` com body JSON.
+2. `isAuthenticated` valida token.
+3. `validateSchema(addItemSchema)` valida `order_id`, `product_id` e `amount`.
+4. `AddItemController.handle` extrai os dados e chama service.
+5. `AddItemOrderService.execute` valida se o pedido existe.
+6. Se o pedido nao existir, retorna erro `404`.
+7. Service valida se o pedido ja foi finalizado (`status = true`).
+8. Se estiver finalizado, retorna erro `400`.
+9. Service valida se o produto existe e esta habilitado (`disable = false`).
+10. Se o produto nao existir/estiver desabilitado, retorna erro `404`.
+11. Service cria o item na tabela `order_items`.
+12. Controller retorna `201` com o item criado e dados resumidos do produto.
+
+### 9.11 Exemplo completo: `DELETE /order/remove`
+
+1. Request chega em `/api/order/remove` com query `item_id`.
+2. `isAuthenticated` valida token.
+3. `validateSchema(removeItemSchema)` valida `item_id`.
+4. `RemoveItemController.handle` extrai `item_id` do query.
+5. `RemoveItemOrderService.execute` valida se o item existe em `order_items`.
+6. Se o item nao existir, retorna erro `404`.
+7. Se existir, service remove o item da tabela `order_items`.
+8. Controller retorna `200` com mensagem de sucesso.
+
 ---
 
 ## 10. Seguranca e Configuracao
@@ -919,8 +1044,8 @@ A validacao e feita por Zod no middleware `validateSchema`, sempre sobre `body`,
 
 ## 11. Observacoes Tecnicas Relevantes
 
-- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao e listagem de pedidos.
-- A camada de pedidos implementada atualmente cobre criacao (`POST /order`) e listagem (`GET /orders`).
+- O banco possui entidades para pedidos (`Order`, `OrderItem`) e, no momento, as rotas implementadas cobrem criacao, listagem, adicao e remocao de itens.
+- A camada de pedidos implementada atualmente cobre criacao (`POST /order`), listagem (`GET /orders`), adicao de item (`POST /order/add`) e remocao de item (`DELETE /order/remove`).
 - A camada de produto implementada atualmente cobre criacao (`POST /product`), listagem filtrada (`GET /products`), listagem por categoria (`GET /category/product`) e desativacao (`DELETE /product`).
 - O cliente Prisma e gerado em `src/generated/prisma` com provider `prisma-client`.
 - O projeto mantem o padrao Controller -> Service -> Prisma em todos os fluxos principais ja implementados.
@@ -946,7 +1071,7 @@ Para evolucao do banco (Prisma), usar fluxo de migrations no diretorio `prisma/m
 - O controller recebe a entrada e delega para o service.
 - O service aplica regras de negocio e acessa o banco via Prisma.
 - No fluxo de produto, o service integra com o Cloudinary para armazenar imagem e tambem executa desativacao logica (`disable = true`).
-- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, e tambem lista pedidos com seus respectivos itens.
+- No fluxo de pedido, o service cria o registro na tabela `orders` com status inicial pendente e rascunho ativo, lista pedidos com seus respectivos itens, adiciona produtos a pedidos em aberto e remove itens existentes.
 - O resultado retorna para o controller, que envia a resposta final ao cliente.
 
 Este documento serve como referencia central para manutencao e evolucao da API.
