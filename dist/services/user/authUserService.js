@@ -7,19 +7,24 @@ exports.AuthUserService = void 0;
 const jsonwebtoken_1 = require("jsonwebtoken");
 const prisma_1 = __importDefault(require("../../prisma"));
 const bcryptjs_1 = require("bcryptjs");
+const email_1 = require("../../utils/email");
 class AuthUserService {
     async execute({ email, password }) {
+        if (!(0, email_1.isValidEmail)(email)) {
+            throw new Error("Email inválido");
+        }
+        const normalizedEmail = (0, email_1.normalizeEmail)(email);
         const user = await prisma_1.default.user.findFirst({
             where: {
-                email: email,
+                email: normalizedEmail,
             },
         });
         if (!user) {
-            throw new Error("Usuario não encontrado");
+            throw new Error("Email ou senha incorretos");
         }
         const passwordMatch = await (0, bcryptjs_1.compare)(password, user.password);
         if (!passwordMatch) {
-            throw new Error("Senha incorreta");
+            throw new Error("Email ou senha incorretos");
         }
         const token = (0, jsonwebtoken_1.sign)({
             userId: user.id,

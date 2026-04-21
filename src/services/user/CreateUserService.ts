@@ -1,5 +1,6 @@
 import prismaClient from "../../prisma";
 import { hash } from "bcryptjs";
+import { isValidEmail, normalizeEmail } from "../../utils/email";
 
 interface CreateUserProps {
   name: string;
@@ -9,9 +10,15 @@ interface CreateUserProps {
 
 class CreateUserService {
   async execute({ name, email, password }: CreateUserProps) {
+    if (!isValidEmail(email)) {
+      throw new Error("Email inválido");
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+
     const userAlreadyExists = await prismaClient.user.findFirst({
       where: {
-        email: email,
+        email: normalizedEmail,
       },
     });
 
@@ -24,7 +31,7 @@ class CreateUserService {
     const user = await prismaClient.user.create({
       data: {
         name: name,
-        email: email,
+        email: normalizedEmail,
         password: passwordHash,
       },
     });
